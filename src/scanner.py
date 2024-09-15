@@ -2,6 +2,7 @@ from pyrogram import Client, types, filters
 from pyrogram.handlers import MessageHandler
 import asyncio 
 from messageListener import Listener
+from stringExtractor import Extractor
 
 # Once set to start, then launch a new process? Or maybe just return the request?
 #   - Set listener -> Maybe use filters?
@@ -18,6 +19,13 @@ class Scanner():
         # Admins to listen to
         self.selectedAdmins : types.ChatMember = []
 
+        # Who the message will be sent to
+        self.selectedDestinationChat : types.Chat = None
+        # How will the message be sent
+        self.destinationFormat : str = "{token}"
+        # Message format that will be used to filter and selecte messages
+        # Must use regex format to extract token
+        self.stringExtractor : Extractor = Extractor()
 
         self.taskGroup = tg
         self.runningListener = None
@@ -32,14 +40,20 @@ class Scanner():
         self.runningListener = None
         await self.client.stop()
 
-    async def printAdminMessage(self, client: Client, message: types.Message):
-        await self.client.send_message('me', message.text)
+    async def redirectMessage(self, client: Client, message: types.Message):
+        # Checks if token exists
+        token = self.stringExtractor.extractToken(message.text)
+        if not token:
+            print("Message did not match correct pattern")
+            return
+
+        await self.client.send_message(self.selectedDestinationChat.id, self.destinationFormat.format(**{"token": token}))
 
     def getSocketDuration(self):
         """
         Returns duration in seconds
         """
-        return 10
+        return 60
     
     def startListening(self):
         if self.runningListener or self.runningTask:
@@ -48,13 +62,21 @@ class Scanner():
         self.runningListener = Listener(
             self.client,
             self.selectedAdmins,
-            self.printAdminMessage,
+            self.redirectMessage,
             self.taskFinishedHandler,
             self.getSocketDuration()
         )
         self.runningTask = self.taskGroup.create_task(self.runningListener.run())
 
-    async def getAvailableChatNames(self) -> types.Dialog:
+    async def getAvailableContacts(self):  
+        """
+        Gets the names of contacts with chats
+        """
+        contacts = []
+        async for contact in self.client.get_contacts():
+            contacts.append(contact)
+        return contacts
+    async def getAvailableGroups(self) -> types.Dialog:
         """
         Gets the names of the chat names a user can listen to
         """
@@ -68,6 +90,15 @@ class Scanner():
         Sets a specific chat to be listened
         """
         self.selectedChat = await self.client.get_chat(selectedChatId)
+
+    async def setDestinationChat(self, selectedChatId):
+        """
+        Sets a specific chat to send messages to
+        """
+        if selectedChatId == self.selectedChat.id:
+            raise Exception("Destination chat can't be the same as origin chat")
+        
+        self.selectedDestinationChat = await self.client.get_chat(selectedChatId)
 
     async def getAvailableAdmins(self):
         """
