@@ -18,7 +18,7 @@ class ScannerCLI:
 
     async def list_chats(self):
         dialogs = await self.scanner.getAvailableGroups()
-        chat_choices = [{'name': dialog.chat.title or dialog.chat.first_name, 'value': dialog.chat.id} for dialog in dialogs if dialog.chat.type == enums.ChatType.GROUP]
+        chat_choices = [{'name': dialog.chat.title or dialog.chat.first_name, 'value': dialog.chat.id} for dialog in dialogs if dialog.chat.type == enums.ChatType.CHANNEL or dialog.chat.type == enums.ChatType.GROUP]
         if not chat_choices:
             await prompt_async("No groups found")
             return
