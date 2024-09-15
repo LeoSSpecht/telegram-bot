@@ -1,0 +1,4 @@
+python -m venv telegram-env
+.\telegram-env\Scripts\activate
+pip install -r requirements.txt
+python ./src/scannerCLI.py
