@@ -2,7 +2,7 @@ import os
 import asyncio
 from pyrogram import Client, enums, idle
 from dotenv import load_dotenv
-from PyInquirer import prompt, Separator
+from InquirerPy import prompt_async, separator
 from scanner import Scanner
 
 # Load environment variables from .env file
@@ -15,11 +15,12 @@ class ScannerCLI:
     def __init__(self, scanner: Scanner):
         self.scanner = scanner
 
+
     async def list_chats(self):
         dialogs = await self.scanner.getAvailableChatNames()
         chat_choices = [{'name': dialog.chat.title or dialog.chat.first_name, 'value': dialog.chat.id} for dialog in dialogs if dialog.chat.type == enums.ChatType.GROUP]
         if not chat_choices:
-            prompt("No groups found")
+            await prompt_async("No groups found")
             return
         
         questions = [
@@ -30,7 +31,7 @@ class ScannerCLI:
                 'choices': chat_choices
             }
         ]
-        answers = prompt(questions)
+        answers = await prompt_async(questions)
         chat_id = answers['chat']
         return chat_id
 
@@ -50,7 +51,7 @@ class ScannerCLI:
                 'choices': admin_choices
             }
         ]
-        answers = prompt(questions)
+        answers = await prompt_async(questions)
         return answers['admin']
 
     async def select_admin(self):
@@ -58,34 +59,39 @@ class ScannerCLI:
         await self.scanner.setSelectedAdmin(selected_admin)
 
     async def run(self):
-        questions = [
-            {
-                'type': 'list',
-                'name': 'option',
-                'message': 'Choose an option:',
-                'choices': [
-                    'Select Chat',
-                    Separator(),
-                    'Exit'
-                ]
-            }
-        ]
-        answer = prompt(questions)
-        option = answer['option']
+        while True:
+            questions = [
+                {
+                    'type': 'list',
+                    'name': 'option',
+                    'message': 'Choose an option:',
+                    'choices': [
+                        'Select Chat',
+                        'Start Running',
+                        separator.Separator(),
+                        'Exit'
+                    ]
+                }
+            ]
+            answer = await prompt_async(questions)
+            option = answer['option']
 
-        if option == 'Select Chat':
-            await self.select_chat()
-            await self.select_admin()
-        elif option == 'Exit':
-            print("Exiting...")
-
+            if option == 'Select Chat':
+                await self.select_chat()
+                await self.select_admin()
+            elif option == "Start Running":
+                self.scanner.startListening()
+            elif option == 'Exit':
+                print("Exiting...")
+                break
 
 async def main():
     async with Client("my_account", api_id, api_key) as app:
-        scanner = Scanner(app)
-        cli = ScannerCLI(scanner)
-        await cli.run()  # Run the CLI
-        await idle()  # Keep the bot running
+        async with asyncio.TaskGroup() as taskGroup:
+            scanner = Scanner(app, taskGroup)
+            cli = ScannerCLI(scanner)
+            await cli.run()  # Run the CLI
+        
 
 if __name__ == "__main__":
     asyncio.run(main())
