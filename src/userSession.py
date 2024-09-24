@@ -4,6 +4,7 @@ from pyromod import Client, Message, Chat
 from pyrogram import filters, enums
 from dotenv import load_dotenv
 from scanner import Scanner
+from cache import r
 
 # Load environment variables
 load_dotenv()
@@ -21,19 +22,41 @@ class UserSession:
         self.phone_number = None
         self.telegram_client = None
         self.scanner = None
+        self.is_authenticated = False
     
+    def set_auth_token(self, auth_token):
+        user_sessions[self.user_id] = auth_token
+        r.set("auth-" + str(self.user_id), auth_token)
+
+    async def set_auth_status(self, auth_token: str, message: Message):
+        if not self.telegram_client:
+            # TODO: Handle case where auth token is expired/wrong
+            self.telegram_client = Client(self.user_id, api_id, api_key, in_memory=True, session_string=auth_token)
+        if not self.telegram_client.is_connected:
+            await self.telegram_client.connect()
+        if not self.telegram_client.is_initialized:
+            await self.telegram_client.initialize()
+        
+        self.set_auth_token(auth_token)
+        self.scanner = Scanner(self.telegram_client, self.taskGroup)
+        self.is_authenticated = True
+        await message.reply(f"Authenticated successfully, use /setup to start")
+
     async def start_auth(self, message: Message):
         """
         Takes a received /start message a checks if user is authenticated
         """
         chat : Chat = message.chat
         if self.user_id in user_sessions:
-            self.telegram_client = Client(self.user_id, api_id, api_key, in_memory=True, session_string=user_sessions[self.user_id])
-            if await self.telegram_client.connect():
-                await message.reply("Authenticated successfully!")
-                return
+            await self.set_auth_status(user_sessions[self.user_id], message)
+            return
 
-        
+        cached_token = r.get('auth-'+str(self.user_id))
+        if cached_token:
+            token = str(cached_token, encoding='utf-8')
+            await self.set_auth_status(token, message)
+            return
+            
         # Start the Pyrogram client for the user session
         self.telegram_client = Client(self.user_id, api_id, api_key, in_memory=True)
         await self.telegram_client.connect()
@@ -54,12 +77,10 @@ class UserSession:
         
         # Complete authentication
         try:
-            auth = await self.telegram_client.sign_in(self.phone_number, phone_hash, code)
+            await self.telegram_client.sign_in(self.phone_number, phone_hash, code)
             auth_token = await self.telegram_client.export_session_string()
-            await self.telegram_client.initialize()
-            user_sessions[self.user_id] = auth_token
-            self.scanner = Scanner(self.telegram_client, self.taskGroup)
-            await message.reply("Authenticated successfully!")
+            await self.set_auth_status(auth_token, message)
+            return
         except Exception as e:
             self.telegram_client = None
             await message.reply(f"Error authenticating: {e}")
