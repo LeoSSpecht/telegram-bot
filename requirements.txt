@@ -5,8 +5,10 @@ prompt_toolkit==3.0.47
 pyaes==1.6.1
 Pygments==2.18.0
 Pyrogram==2.0.106
+pyromod==3.1.6
 PySocks==1.7.1
 python-dotenv==1.0.1
+redis==5.0.8
 regex==2024.7.24
 six==1.16.0
 wcwidth==0.2.13

@@ -1,3 +1,4 @@
 .env
 telegram-env/
 *.session
+src/__pycache__/*

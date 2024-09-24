@@ -1,4 +1,5 @@
-from pyrogram import Client, types, filters
+from pyromod import Client, Message
+from pyrogram import types, filters
 from pyrogram.handlers import MessageHandler
 import asyncio 
 from messageListener import Listener
@@ -76,6 +77,7 @@ class Scanner():
         async for contact in self.client.get_contacts():
             contacts.append(contact)
         return contacts
+    
     async def getAvailableGroups(self) -> types.Dialog:
         """
         Gets the names of the chat names a user can listen to
@@ -103,20 +105,24 @@ class Scanner():
     async def getAvailableAdmins(self):
         """
         Gets the users from a specific chat
+        ONLY AVAILABLE WHEN ADMIN
         """
         members = []
         async for member in self.selectedChat.get_members():
             members.append(member)
         return members
 
-    async def setSelectedAdmin(self, selectedAdminId):
+    async def getUserByUsername(self, username):
+        if not self.selectedChat:
+            raise Exception("Need to have a chat to select admin")
+        member = await self.client.get_chat_member(self.selectedChat.id, username)
+        return member
+
+    async def setSelectedAdmin(self, selectedUser: types.ChatMember):
         """
         Sets users who the listener should listen to 
         """
         # Makes sure user exists
-        admin_user : types.ChatMember = await self.selectedChat.get_member(selectedAdminId)
-        self.selectedAdmins.append(admin_user)
-
-
+        self.selectedAdmins.append(selectedUser)
 
     

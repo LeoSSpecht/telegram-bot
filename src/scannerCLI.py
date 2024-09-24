@@ -1,6 +1,7 @@
 import os
 import asyncio
 from pyrogram import Client, enums, idle
+from pyrogram.handlers import MessageHandler
 from dotenv import load_dotenv
 from InquirerPy import prompt_async, separator
 from scanner import Scanner
@@ -18,7 +19,7 @@ class ScannerCLI:
 
     async def list_chats(self):
         dialogs = await self.scanner.getAvailableGroups()
-        chat_choices = [{'name': dialog.chat.title or dialog.chat.first_name, 'value': dialog.chat.id} for dialog in dialogs if dialog.chat.type == enums.ChatType.CHANNEL or dialog.chat.type == enums.ChatType.GROUP]
+        chat_choices = [{'name': dialog.chat.title or dialog.chat.first_name, 'value': dialog.chat.id} for dialog in dialogs if dialog.chat.type == enums.ChatType.CHANNEL or dialog.chat.type == enums.ChatType.GROUP or dialog.chat.type == enums.ChatType.SUPERGROUP]
         if not chat_choices:
             await prompt_async("No groups found")
             return
@@ -77,10 +78,26 @@ class ScannerCLI:
         ]
         answers = await prompt_async(questions)
         return answers['admin']
+    async def get_admins_by_username(self) -> str:
+        # Ask user to input an admin's username
+        questions = [
+            {
+                'type': 'input',
+                'name': 'usernames',
+                'message': 'Enter the username(s) of the admin(s) you want to select, separated by ";":',
+            }
+        ]
+        answers = await prompt_async(questions)
+        usernames = answers['usernames'].split(";")
+        cleanUsernames = [name.strip().replace("@", "") for name in usernames]
+        return cleanUsernames
 
     async def select_admin(self):
-        selected_admin = await self.list_admins()
-        await self.scanner.setSelectedAdmin(selected_admin)
+        # Ask user input for username of user they want to listen to
+        admin_usernames = await self.get_admins_by_username()
+        for admin in admin_usernames:
+            admin_chat_user = await self.scanner.getUserByUsername(admin)
+            await self.scanner.setSelectedAdmin(admin_chat_user)
 
     async def run(self):
         while True:
@@ -113,7 +130,7 @@ class ScannerCLI:
                     print("Exiting...")
                     break
             except Exception as e:
-                print("ERROR: ", e)
+                print("ERROR: ", repr(e))
 
 async def main():
     async with Client("my_account", api_id, api_key) as app:
