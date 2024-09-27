@@ -31,12 +31,8 @@ class Scanner():
         self.taskGroup = tg
         self.runningListener = None
         self.runningTask = None
-    
-    def run(self):
-        self.client.run()
 
     async def taskFinishedHandler(self,):
-        print("Called this")
         self.runningTask = None
         self.runningListener = None
         await self.client.stop()
@@ -118,7 +114,7 @@ class Scanner():
         member = await self.client.get_chat_member(self.selectedChat.id, username)
         return member
 
-    async def setSelectedAdmin(self, selectedUser: types.ChatMember):
+    def setSelectedAdmin(self, selectedUser: types.ChatMember):
         """
         Sets users who the listener should listen to 
         """

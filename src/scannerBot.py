@@ -33,51 +33,82 @@ class ScannerBot:
     async def display_menu(self, message: Message):
         """Displays the menu options using InlineKeyboardMarkup."""
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("Select Chat", callback_data="select_chat")],
-            [InlineKeyboardButton("Select Destination Chat", callback_data="select_destination_chat")],
-            [InlineKeyboardButton("Start Scanner", callback_data="start_scanner")],
-            [InlineKeyboardButton("Exit", callback_data="exit")]
+            [InlineKeyboardButton("Select Chat", callback_data="menu_input-select_chat")],
+            [InlineKeyboardButton("Select Destination Chat", callback_data="menu_input-select_destination_chat")],
+            [InlineKeyboardButton("Start Scanner", callback_data="menu_input-start_scanner")],
         ])
         await self.bot_client.send_message(message.chat.id, "Choose an option:", reply_markup=keyboard)
 
     async def handle_menu_callback(self, client: Client, callback_query: CallbackQuery):
         """Handles button clicks from InlineKeyboardMarkup."""
         data = callback_query.data
+        print(data)
+        data_key, data_value = data.split("-", maxsplit=1)
         user = callback_query.from_user
         message = callback_query.message
 
-        if data == "select_chat":
-            await self.select_chat(user, message)
-        elif data == "select_destination_chat":
-            await self.select_destination_chat(message)
-        elif data == "start_scanner":
-            await self.start_scanner(message)
-        elif data == "exit":
-            await self.bot_client.send_message(message.chat.id, "Exiting setup.")
-            await self.bot_client.answer_callback_query(callback_query.id, text="Exited.")
-            return
-        
-        # After each action, display the menu again (unless exit)
-        await self.display_menu(message)
+        if data_key == "menu_input":
+            if data_value == "select_chat":
+                await self.show_select_chat_options(user, message)
+            elif data_value == "select_destination_chat":
+                await self.show_destination_chat_options(user, message)
+            elif data_value == "start_scanner":
+                await self.run_user(user)
+        if data_key == "select_chat_answer":
+            await self.select_chat(user, data_value)
+            await self.show_select_admin_options(user, message)
+
+        if data_key == "select_destination_answer":
+            await self.select_destination_chat(user, data_value)
+
 
     async def handle_setup(self, message: Message):
         await self.display_menu(message)
 
     async def handle_auth(self, message: Message):
         user = message.from_user
-        print(user.id)
         self.user_sessions[user.id] = UserSession(user.id, self.bot_client, self.task_group)
         await self.user_sessions[user.id].start_auth(message)
-    
-    # Select chat
-    async def select_chat(self, user: User, message: Message):
+
+    async def run_user(self, user: User):
+        scanner = self.get_user_scanner(user.id)
+        scanner.startListening()
+
+    # Destination chat
+    async def show_destination_chat_options(self, user: User, message: Message):
         scanner = self.get_user_scanner(user.id)
         dialogs = await scanner.getAvailableGroups()
         chat_choices = [{'name': dialog.chat.title or dialog.chat.first_name, 'value': str(dialog.chat.id)} for dialog in dialogs]
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton(chat["name"], callback_data=chat["value"])] for chat in chat_choices
+            [InlineKeyboardButton(chat["name"], callback_data='select_destination_answer-' + chat["value"])] for chat in chat_choices
+        ])
+        await self.bot_client.send_message(message.chat.id, "Choose a chat to send to:", reply_markup=keyboard)
+
+    async def select_destination_chat(self, user, chat_id):
+        scanner = self.get_user_scanner(user.id)
+        await scanner.setDestinationChat(chat_id) 
+
+    # Select chat
+    async def show_select_chat_options(self, user: User, message: Message):
+        scanner = self.get_user_scanner(user.id)
+        dialogs = await scanner.getAvailableGroups()
+        chat_choices = [{'name': dialog.chat.title or dialog.chat.first_name, 'value': str(dialog.chat.id)} for dialog in dialogs]
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton(chat["name"], callback_data='select_chat_answer-' + chat["value"])] for chat in chat_choices
         ])
         await self.bot_client.send_message(message.chat.id, "Choose a chat to listen to:", reply_markup=keyboard)
+
+    async def select_chat(self, user, chat_id):
+        scanner = self.get_user_scanner(user.id)
+        await scanner.setSelectedChat(chat_id)
+
+    async def show_select_admin_options(self, user: User, message: Message):
+        scanner = self.get_user_scanner(user.id)
+        chat = message.chat
+        admin_username = await chat.ask("Please enter the telegram username of the user you want to follow")
+        admin_user = await scanner.getUserByUsername(admin_username.text)
+        scanner.setSelectedAdmin(admin_user)
+        await self.display_menu(message)
 
     def get_user_scanner(self, user_id) -> Scanner:
         return self.user_sessions[user_id].scanner
