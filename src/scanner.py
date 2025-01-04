@@ -5,11 +5,6 @@ import asyncio
 from messageListener import Listener
 from stringExtractor import Extractor
 
-# Once set to start, then launch a new process? Or maybe just return the request?
-#   - Set listener -> Maybe use filters?
-#   - Find a way to check if it ever logged out?
-#   - Set a limit time to when the socket should stop (initially 1h)
-
 class Scanner():
     def __init__(self, app: Client, tg: asyncio.TaskGroup):
         # The telegram user client

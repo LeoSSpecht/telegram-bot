@@ -42,7 +42,7 @@ class ScannerBot:
     async def handle_menu_callback(self, client: Client, callback_query: CallbackQuery):
         """Handles button clicks from InlineKeyboardMarkup."""
         data = callback_query.data
-        print(data)
+
         data_key, data_value = data.split("-", maxsplit=1)
         user = callback_query.from_user
         message = callback_query.message

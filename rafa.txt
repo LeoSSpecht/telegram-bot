@@ -1,5 +1,0 @@
-cd C:\Users\rafae\OneDrive\Documentos\GitHub\telegram-bot
-python -m venv telegram-env
-.\telegram-env\Scripts\activate
-pip install -r requirements.txt
-python ./src/scannerCLI.py
