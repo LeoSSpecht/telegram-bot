@@ -1,6 +1,6 @@
 # telegram-bot
 
-A telegram bot that scans for messages and automatically buys meme coins
+A telegram bot that scans for messages and automatically buys meme coins, mimicking meme coins whale movements.
 
 # Requirements
 - Python and venv installed
@@ -12,6 +12,10 @@ A telegram bot that scans for messages and automatically buys meme coins
 The bot authenticates a user and accepts inputs to define which channels and other users to listen to. After this it creates a thread that listens to the configured messages and replies with predefined messaged to other channels.
 
 After a specified timeout the connection is killed and needs to be restarted.
+
+This was a proof of concept that automated buying and selling based on signals could be done on telegram, mimicking meme coin whale movements.
+
+Use it at your own risk of losing/making money.
 
 # Running the bot
 ```
